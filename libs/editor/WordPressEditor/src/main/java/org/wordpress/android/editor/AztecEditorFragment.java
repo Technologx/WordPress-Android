@@ -57,6 +57,8 @@ public class AztecEditorFragment extends EditorFragmentAbstract implements OnIme
     private SourceViewEditText source;
     private Html.ImageGetter imageLoader;
 
+    private EditorMediaOptionsListener mEditorMediaOptionsListener;
+
     public static AztecEditorFragment newInstance(String title, String content) {
         AztecEditorFragment fragment = new AztecEditorFragment();
         Bundle args = new Bundle();
@@ -82,8 +84,44 @@ public class AztecEditorFragment extends EditorFragmentAbstract implements OnIme
         content = (AztecText)view.findViewById(R.id.aztec);
         source = (SourceViewEditText) view.findViewById(R.id.source);
 
-        AztecToolbar formattingToolbar = (AztecToolbar) view.findViewById(R.id.formatting_toolbar);
-        formattingToolbar.setEditor(content, source);
+        AztecToolbar toolbar = (AztecToolbar) view.findViewById(R.id.formatting_toolbar);
+        toolbar.setEditor(content, source);
+        toolbar.setMediaOptionSelectedListener(new AztecToolbar.OnMediaOptionSelectedListener() {
+            @Override
+            public void onCameraPhotoMediaOptionSelected() {
+                mEditorMediaOptionsListener.onCameraPhotoMediaOptionSelected();
+            }
+
+            @Override
+            public void onCameraVideoMediaOptionSelected() {
+                mEditorMediaOptionsListener.onCameraVideoMediaOptionSelected();
+            }
+
+            @Override
+            public void onGalleryMediaOptionSelected() {
+                mEditorMediaOptionsListener.onGalleryMediaOptionSelected();
+            }
+
+            @Override
+            public void onPhotoLibraryMediaOptionSelected() {
+                mEditorMediaOptionsListener.onPhotoLibraryMediaOptionSelected();
+            }
+
+            @Override
+            public void onPhotosMediaOptionSelected() {
+                mEditorMediaOptionsListener.onPhotosMediaOptionSelected();
+            }
+
+            @Override
+            public void onVideoLibraryMediaOptionSelected() {
+                mEditorMediaOptionsListener.onVideoLibraryMediaOptionSelected();
+            }
+
+            @Override
+            public void onVideosMediaOptionSelected() {
+                mEditorMediaOptionsListener.onVideosMediaOptionSelected();
+            }
+        });
 
         // initialize the text & HTML
         source.history = content.history;
@@ -131,8 +169,14 @@ public class AztecEditorFragment extends EditorFragmentAbstract implements OnIme
 
         try {
             mEditorDragAndDropListener = (EditorDragAndDropListener) activity;
-        } catch (ClassCastException e) {
+        } catch (ClassCastException exception) {
             throw new ClassCastException(activity.toString() + " must implement EditorDragAndDropListener");
+        }
+
+        try {
+            mEditorMediaOptionsListener = (EditorMediaOptionsListener) activity;
+        } catch (ClassCastException exception) {
+            throw new ClassCastException(activity.toString() + " must implement EditorMediaOptionsListener");
         }
     }
 
@@ -284,6 +328,13 @@ public class AztecEditorFragment extends EditorFragmentAbstract implements OnIme
 
     @Override
     public void onGalleryMediaUploadSucceeded(final long galleryId, String remoteMediaId, int remaining) {
+    }
+
+    /**
+     * Get [AztecText] content view.
+     */
+    public AztecText getContentView() {
+        return this.content;
     }
 
     /**
@@ -449,4 +500,13 @@ public class AztecEditorFragment extends EditorFragmentAbstract implements OnIme
         }
     };
 
+    public interface EditorMediaOptionsListener {
+        void onCameraPhotoMediaOptionSelected();
+        void onCameraVideoMediaOptionSelected();
+        void onGalleryMediaOptionSelected();
+        void onPhotoLibraryMediaOptionSelected();
+        void onPhotosMediaOptionSelected();
+        void onVideoLibraryMediaOptionSelected();
+        void onVideosMediaOptionSelected();
+    }
 }

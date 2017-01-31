@@ -13,7 +13,10 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
+import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Build;
@@ -94,6 +97,7 @@ import org.wordpress.android.util.AutolinkUtils;
 import org.wordpress.android.util.CrashlyticsUtils;
 import org.wordpress.android.util.CrashlyticsUtils.ExceptionType;
 import org.wordpress.android.util.DeviceUtils;
+import org.wordpress.android.util.DisplayUtils;
 import org.wordpress.android.util.ImageUtils;
 import org.wordpress.android.util.MediaUtils;
 import org.wordpress.android.util.NetworkUtils;
@@ -109,6 +113,7 @@ import org.wordpress.android.util.helpers.MediaGallery;
 import org.wordpress.android.util.helpers.MediaGalleryImageSpan;
 import org.wordpress.android.util.helpers.WPImageSpan;
 import org.wordpress.android.widgets.WPViewPager;
+import org.wordpress.aztec.Html;
 import org.wordpress.mediapicker.MediaItem;
 import org.wordpress.mediapicker.source.MediaSource;
 import org.wordpress.mediapicker.source.MediaSourceDeviceImages;
@@ -117,6 +122,8 @@ import org.wordpress.passcodelock.AppLockManager;
 import org.xmlrpc.android.ApiHelper;
 
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -128,8 +135,12 @@ import java.util.regex.Pattern;
 
 import de.greenrobot.event.EventBus;
 
-public class EditPostActivity extends AppCompatActivity implements EditorFragmentListener, EditorDragAndDropListener,
-        ActivityCompat.OnRequestPermissionsResultCallback, EditorWebViewCompatibility.ReflectionFailureListener {
+public class EditPostActivity extends AppCompatActivity implements
+        EditorFragmentListener,
+        EditorDragAndDropListener,
+        ActivityCompat.OnRequestPermissionsResultCallback,
+        EditorWebViewCompatibility.ReflectionFailureListener,
+        AztecEditorFragment.EditorMediaOptionsListener {
     public static final String EXTRA_POSTID = "postId";
     public static final String EXTRA_IS_PAGE = "isPage";
     public static final String EXTRA_IS_NEW_POST = "isNewPost";
@@ -190,6 +201,7 @@ public class EditPostActivity extends AppCompatActivity implements EditorFragmen
     private Post mPost;
     private Post mOriginalPost;
 
+    private AztecEditorFragment mAztecEditorFragment;
     private EditorFragmentAbstract mEditorFragment;
     private EditPostSettingsFragment mEditPostSettingsFragment;
     private EditPostPreviewFragment mEditPostPreviewFragment;
@@ -732,6 +744,50 @@ public class EditPostActivity extends AppCompatActivity implements EditorFragmen
         }
     }
 
+    // Editor Media Menu Options
+    @Override
+    public void onCameraPhotoMediaOptionSelected() {
+        if (PermissionUtils.checkAndRequestCameraAndStoragePermissions(EditPostActivity.this, MEDIA_PERMISSION_REQUEST_CODE)) {
+            launchCamera();
+        }
+    }
+
+    @Override
+    public void onCameraVideoMediaOptionSelected() {
+        if (PermissionUtils.checkAndRequestCameraAndStoragePermissions(EditPostActivity.this, MEDIA_PERMISSION_REQUEST_CODE)) {
+            launchVideoCamera();
+        }
+    }
+
+    @Override
+    public void onGalleryMediaOptionSelected() {
+        startMediaGalleryActivity(null);
+    }
+
+    @Override
+    public void onPhotoLibraryMediaOptionSelected() {
+        startMediaGalleryAddActivity();
+    }
+
+    @Override
+    public void onPhotosMediaOptionSelected() {
+        if (PermissionUtils.checkAndRequestCameraAndStoragePermissions(EditPostActivity.this, MEDIA_PERMISSION_REQUEST_CODE)) {
+            launchPictureLibrary();
+        }
+    }
+
+    @Override
+    public void onVideoLibraryMediaOptionSelected() {
+        startMediaGalleryAddActivity();
+    }
+
+    @Override
+    public void onVideosMediaOptionSelected() {
+        if (PermissionUtils.checkAndRequestCameraAndStoragePermissions(EditPostActivity.this, MEDIA_PERMISSION_REQUEST_CODE)) {
+            launchVideoLibrary();
+        }
+    }
+
     private void launchPictureLibrary() {
         WordPressMediaUtils.launchPictureLibrary(this);
         AppLockManager.getInstance().setExtendedTimeout();
@@ -978,13 +1034,20 @@ public class EditPostActivity extends AppCompatActivity implements EditorFragmen
             Fragment fragment = (Fragment) super.instantiateItem(container, position);
             switch (position) {
                 case 0:
+                    // TODO: Remove editor options after testing.
+                    if (mShowAztecEditor) {
+                        mAztecEditorFragment = (AztecEditorFragment) fragment;
+                    }
+
                     mEditorFragment = (EditorFragmentAbstract) fragment;
+
                     if (mEditorFragment instanceof EditorMediaUploadListener) {
                         mEditorMediaUploadListener = (EditorMediaUploadListener) mEditorFragment;
 
                         // Set up custom headers for the visual editor's internal WebView
                         mEditorFragment.setCustomHttpHeader("User-Agent", WordPress.getUserAgent());
                     }
+
                     break;
                 case 1:
                     mEditPostSettingsFragment = (EditPostSettingsFragment) fragment;
@@ -1088,7 +1151,29 @@ public class EditPostActivity extends AppCompatActivity implements EditorFragmen
             return;
         }
         trackAddMediaEvents(mediaFile.isVideo(), true);
-        mEditorFragment.appendMediaFile(mediaFile, getMediaUrl(mediaFile), WordPress.imageLoader);
+
+        // TODO: Remove editor options after testing.
+        if (mShowAztecEditor) {
+            String url = getMediaUrl(mediaFile);
+            final String source = "<img src=\"" + url + "\">";  // Temporary source value.  Replace with URL after uploaded.
+            mAztecEditorFragment.getContentView().getImageGetter().loadImage(
+                url,
+                new Html.ImageGetter.Callbacks() {
+                    @Override
+                    public void onImageLoaded(Drawable drawable) {
+                        mAztecEditorFragment.getContentView().getLineBlockFormatter().insertMedia(drawable, source);
+                    }
+
+                    @Override
+                    public void onImageLoadingFailed() {
+                        mAztecEditorFragment.getContentView().getLineBlockFormatter().insertMedia(getResources().getDrawable(R.drawable.ic_image_failed), source);
+                    }
+                },
+                getResources().getDisplayMetrics().widthPixels - DisplayUtils.dpToPx(EditPostActivity.this, 32)
+            );
+        } else {
+            mEditorFragment.appendMediaFile(mediaFile, getMediaUrl(mediaFile), WordPress.imageLoader);
+        }
     }
 
     /**
@@ -1552,7 +1637,10 @@ public class EditPostActivity extends AppCompatActivity implements EditorFragmen
         boolean isVideo = MediaUtils.isVideo(mediaUri.toString());
         trackAddMediaEvents(isVideo, false);
 
-        if (mShowNewEditor) {
+        // TODO: Remove editor options after testing.
+        if (mShowAztecEditor) {
+            return addMediaEditor(mediaUri, mMediaCapturePath);
+        } else if (mShowNewEditor) {
             // TODO: add video param
             return addMediaVisualEditor(mediaUri);
         } else {
@@ -1570,6 +1658,21 @@ public class EditPostActivity extends AppCompatActivity implements EditorFragmen
         }
         SqlUtils.closeCursor(cur);
         return path;
+    }
+
+    private boolean addMediaEditor(Uri uri, String path) {
+        try {
+            InputStream stream = getContentResolver().openInputStream(uri);
+            Bitmap bitmap = BitmapFactory.decodeStream(stream);
+            Drawable drawable = new BitmapDrawable(getResources(), bitmap);
+            String source = "<img src=\"" + path + "\">";  // Temporary source value.  Replace with URL after uploaded.
+            mAztecEditorFragment.getContentView().getLineBlockFormatter().insertMedia(drawable, source);
+        } catch (FileNotFoundException exception) {
+            ToastUtils.showToast(this, R.string.file_not_found, Duration.SHORT);
+            return false;
+        }
+
+        return true;
     }
 
     private boolean addMediaVisualEditor(Uri imageUri) {
@@ -1704,7 +1807,14 @@ public class EditPostActivity extends AppCompatActivity implements EditorFragmen
         if (gallery == null || gallery.getIds().size() == 0) {
             return;
         }
-        mEditorFragment.appendGallery(gallery);
+
+        // TODO: Remove editor options after testing.
+        if (mShowAztecEditor) {
+            String ids = gallery.getIds().toString().replace("[", "").replace("]", "").replace(" ", "");
+            mAztecEditorFragment.getContentView().append("[gallery columns=\"" + gallery.getNumColumns() + "\"" + " ids=\"" + ids + "\"]");
+        } else {
+            mEditorFragment.appendGallery(gallery);
+        }
     }
 
     /**
