@@ -147,6 +147,13 @@ public class WPNetworkImageView extends AppCompatImageView {
         }
     }
 
+    public void cancelRequest() {
+        if (mImageContainer != null) {
+            mImageContainer.cancelRequest();
+            mImageContainer = null;
+        }
+    }
+
     /**
      * Loads the image for the view if it isn't already loaded.
      * @param isInLayoutPass True if this was invoked from a layout pass, false otherwise.
@@ -161,10 +168,7 @@ public class WPNetworkImageView extends AppCompatImageView {
         // if the URL to be loaded in this view is empty, cancel any old requests and clear the
         // currently loaded image.
         if (TextUtils.isEmpty(mUrl)) {
-            if (mImageContainer != null) {
-                mImageContainer.cancelRequest();
-                mImageContainer = null;
-            }
+            cancelRequest();
             showErrorImage();
             return;
         }
@@ -273,13 +277,7 @@ public class WPNetworkImageView extends AppCompatImageView {
     }
 
     public void resetImage() {
-        if (mImageContainer != null) {
-            // If the view was bound to an image request, cancel it and clear
-            // out the image from the view.
-            mImageContainer.cancelRequest();
-            // also clear out the container so we can reload the image if necessary.
-            mImageContainer = null;
-        }
+        cancelRequest();
         setImageBitmap(null);
     }
 
@@ -297,14 +295,7 @@ public class WPNetworkImageView extends AppCompatImageView {
 
     @Override
     protected void onDetachedFromWindow() {
-        if (mImageContainer != null) {
-            // If the view was bound to an image request, cancel it and clear
-            // out the image from the view.
-            mImageContainer.cancelRequest();
-            setImageBitmap(null);
-            // also clear out the container so we can reload the image if necessary.
-            mImageContainer = null;
-        }
+        resetImage();
         super.onDetachedFromWindow();
     }
 
