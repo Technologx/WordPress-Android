@@ -309,6 +309,14 @@ public class ReaderCommentAdapter extends RecyclerView.Adapter<RecyclerView.View
     }
 
     @Override
+    public void onViewRecycled(RecyclerView.ViewHolder holder) {
+        if (holder instanceof CommentHolder) {
+            ((CommentHolder) holder).imgAvatar.cancelRequest();
+        }
+        super.onViewRecycled(holder);
+    }
+
+    @Override
     public long getItemId(int position) {
         switch (getItemViewType(position)) {
             case VIEW_TYPE_HEADER:
