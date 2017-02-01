@@ -82,6 +82,12 @@ public class ReaderUserAdapter  extends RecyclerView.Adapter<ReaderUserAdapter.U
     }
 
     @Override
+    public void onViewRecycled(UserViewHolder holder) {
+        holder.imgAvatar.cancelRequest();
+        super.onViewRecycled(holder);
+    }
+
+    @Override
     public long getItemId(int position) {
         return mUsers.get(position).userId;
     }
