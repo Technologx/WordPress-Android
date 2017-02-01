@@ -305,6 +305,12 @@ public class NotesAdapter extends RecyclerView.Adapter<NotesAdapter.NoteViewHold
         }
     }
 
+    @Override
+    public void onViewRecycled(NoteViewHolder holder) {
+        holder.imgAvatar.cancelRequest();
+        super.onViewRecycled(holder);
+    }
+
     public int getPositionForNote(String noteId) {
         return getPositionForNoteInArray(noteId, mFilteredNotes);
     }
