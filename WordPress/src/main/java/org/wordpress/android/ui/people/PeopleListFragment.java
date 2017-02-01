@@ -373,6 +373,12 @@ public class PeopleListFragment extends Fragment {
             }
         }
 
+        @Override
+        public void onViewRecycled(RecyclerView.ViewHolder holder) {
+            ((PeopleViewHolder) holder).imgAvatar.cancelRequest();
+            super.onViewRecycled(holder);
+        }
+
         public class PeopleViewHolder extends RecyclerView.ViewHolder implements View.OnClickListener {
             private final WPNetworkImageView imgAvatar;
             private final TextView txtDisplayName;
